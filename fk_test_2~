@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+import rospy
+import tf
+
+from sensor_msgs.msg import JointState
+
+from youbot_arm_kinematics.kinematics import Kinematics
+from youbot_arm_kinematics.dh_parameters import YouBotDHParameters
+
+
+class YoubotControlNode:
+
+    def __init__(self):
+        rospy.init_node("fk_test")
+
+        self.subJointState = rospy.Subscriber("joint_states", JointState, self.callbackJointState)
+
+        self.ks = Kinematics(YouBotDHParameters.DH_A, YouBotDHParameters.DH_ALPHA,
+                             YouBotDHParameters.DH_D, YouBotDHParameters.DH_THETA)
+        rospy.spin()
+
+
+	def goCandle(self):
+		positions = [3.04, 1.18, -2.63, 1.75, 2.89]
+		
+	def goHome(self):
+		for i in range(5):
+		    jp_msg.positions[i].value = 0.025
+		jp_msg.positions[2].value = -0.02
+		jp_msg.positions[4].value = 0.12
+
+    def callbackJointState(self, jointState):
+        qs = []
+        for i, jointPosition in enumerate(jointState.position):
+            qs.append(jointPosition)
+            # pass griper's fingers frames (and griper base too)
+            if i == 4:
+                break
+
+        xyz, qtn, rpy, h = self.ks.forward(qs)
+
+        rospy.loginfo(' Qs: ' + str(qs))
+        rospy.loginfo('xyz: ' + str(xyz) + ' qtn: ' + str(qtn))
+        rospy.loginfo('rpy: ' + str(rpy))
+
+        # set orange brick at the end of griper
+        br = tf.TransformBroadcaster()
+        br.sendTransform(xyz, qtn, rospy.Time.now(), 'tool_link', "base_link")
+
+if __name__ == '__main__':
+    rospy.wait_for_service('add_two_ints')
+    FKinematics()
+    
+
+def add_two_ints_client(x, y):
+    rospy.wait_for_service('add_two_ints')
+    try:
+        add_two_ints = rospy.ServiceProxy('add_two_ints', AddTwoInts)
+        resp1 = add_two_ints(x, y)
+        return resp1.sum
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+
+def usage():
+    return "%s [x y]"%sys.argv[0]
+
+if __name__ == "__main__":
+    if len(sys.argv) == 3:
+        x = int(sys.argv[1])
+        y = int(sys.argv[2])
+    else:
+        print usage()
+        sys.exit(1)
+    print "Requesting %s+%s"%(x, y)
+    print "%s + %s = %s"%(x, y, add_two_ints_client(x, y))
